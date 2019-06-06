@@ -1,11 +1,11 @@
-'use strict';
+// 'use strict';
 import {DocumentSelector, ExtensionContext, commands} from "vscode";
 
 // ctags
 import {CtagsManager} from "./ctags";
 
 // Commands
-import * as TestbenchInstantiation from "./commands/TestbenchInstantiation"
+import * as TestbenchInstantiation from "./commands/TestbenchInstantiation";
 
 export let ctagsManager:CtagsManager = new CtagsManager;
 
