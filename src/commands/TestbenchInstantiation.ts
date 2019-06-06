@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {Ctags, Symbol} from "../ctags";
 import { window, QuickPickItem, workspace, SnippetString } from 'vscode';
+import { POINT_CONVERSION_COMPRESSED } from 'constants';
 
 export function instantiateTestbenchInteract() {
     let filePath = path.dirname(window.activeTextEditor!.document.fileName);
@@ -67,14 +68,55 @@ function instantiateTestbench(srcpath: string) : Thenable<SnippetString> {
             }
             console.log(portsName);
             resolve(new SnippetString()
-          .appendText(module.name + " ")
-          .appendText(paramString)
-          .appendPlaceholder("u_")
-          .appendPlaceholder(`${module.name}(\n`)
-          .appendText(instantiatePort(portsName))
-          .appendText(');\n'));
+                    .appendText(headerString(module.name))
+                    .appendText(netDeclarations(portsName))
+                    .appendText(initialBlock())
+                    .appendText(module.name + " ")
+                    .appendText(paramString)
+                    .appendText(`${module.name}_tb(\n`)
+                    .appendText(instantiatePort(portsName))
+                    .appendText(');\n\n')
+                    .appendText(tieParams(module.name, parametersName))
+                    .appendText("endmodule\n"));
         });
     });
+}
+
+function headerString(moduleName: string): string {
+    let header = "`timescale 1ns / 1ps\n";
+    header += "`include ../../sources/" + moduleName + ".v\n\n";
+    header += "module " + moduleName + "_tests;\n\n";
+    return header;
+}
+
+function netDeclarations(ports: string[]): string {
+    let nets = "reg ";
+    for (let i = 0; i < ports.length; i++) {
+        nets += ports[i];
+        if (i !== ports.length - 1) {
+            nets += ", ";
+        } else {
+            nets += ";\n\n";
+        }
+    }
+    return nets;
+}
+
+function initialBlock(): string {
+    let initial = "initial begin\n";
+    initial += "\t$from_myhdl()\n";
+    initial += "\t$to_myhdl()\n";
+    initial += "end\n\n";
+    return initial;
+}
+
+function tieParams(moduleName: string, parametersName: string[]) : string {
+    let tied = "";
+    for (let i = 0; i < parametersName.length; i++) {
+        tied += "`defparam " + moduleName + "_tb." + parametersName[i] + " = `" + parametersName[i].toLowerCase() + "\n";
+    }
+    tied += "\n";
+    return tied;
 }
 
 function instantiatePort(ports: string[]): string {
