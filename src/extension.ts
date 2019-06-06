@@ -20,7 +20,7 @@ export function activate(context: ExtensionContext) {
 	ctagsManager.configure();
 
 	// Configure command to instantiate a module
-	commands.registerCommand("myhdltools.instantiateTestbench", TestbenchInstantiation.instantiateModuleInteract);
+	commands.registerCommand("myhdltools.instantiateTestbench", TestbenchInstantiation.instantiateTestbenchInteract);
 }
 
 export function deactivate() {
