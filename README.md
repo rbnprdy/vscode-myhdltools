@@ -1,65 +1,37 @@
-# myhdltools README
+# MyHDL Tools
 
-This is the README for your extension "myhdltools". After writing up a brief description, we recommend including the following sections.
+This package provides some helpful code generators for using the `MyHDL` python package for Verilog Cosimulation. It is based on the `Verilog HDL Support` vscode package ([repository link](https://github.com/mshr-h/vscode-verilog-hdl-support).)
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### Testbench Instantiation
 
-For example if there is an image subfolder under your extension project workspace:
+Given a verilog module, this will create a snippet for verilog testbench which can be used to bind the module to MyHDL. All nets are initialized as `reg` types which must be corrected based on the given module. The path of the source file may have to be changed as well.
 
-\!\[feature X\]\(images/feature-x.png\)
+### Bind Initialization
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+Given a verilog module, this will create a snippet for that same module in MyHDL format which can be referred to in a MyHDL testbench.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+This package relies on Ctags for parsing. The recommended version to install is Universal Ctags
 
-## Extension Settings
+### Installation of Universal Ctags
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+- Windows - Daily builds are available at ctags-win32
+- Linux - Installation instructions are here
+- macOS - Install through Homebrew from here
 
-For example:
+## TODO
 
-This extension contributes the following settings:
+Ideally, this package would enable some more helpful configuration (i.e. where source files are stored, etc.)
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
+Additionally, it would be nice if the creation of files could be automated (when you create a new module, run a command and have it generate the test bench and binding files for that module.)
 
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Lastly, the ctags implementation being used does not differentiate between wires and registers. If this was done, then the instantiation could be correct in the testbench.
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Initial release

@@ -3,17 +3,17 @@ import * as path from 'path';
 import {Ctags, Symbol} from "../ctags";
 import { window, QuickPickItem, workspace, SnippetString } from 'vscode';
 
-export function instantiateTestbenchInteract() {
+export function instantiateBindInteract() {
     let filePath = path.dirname(window.activeTextEditor!.document.fileName);
     selectFile(filePath).then(srcpath => {
-        instantiateTestbench(srcpath)
+        instantiateBind(srcpath)
         .then(inst => {
             window.activeTextEditor!.insertSnippet(inst);
         });
     });
 }
 
-function instantiateTestbench(srcpath: string) : Thenable<SnippetString> {
+function instantiateBind(srcpath: string) : Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
         let moduleName : string | undefined = "";
@@ -61,83 +61,76 @@ function instantiateTestbench(srcpath: string) : Thenable<SnippetString> {
                                                          tag.parentScope === scope);
             parametersName = params.map(tag => tag.name);
             console.log(module);
-            let paramString = ``;
-            if (parametersName.length > 0) {
-                paramString = `\n#(\n${instantiatePort(parametersName)})\n`;
-            }
             console.log(portsName);
             resolve(new SnippetString()
                     .appendText(headerString(module.name))
-                    .appendText(netDeclarations(portsName))
-                    .appendText(initialBlock())
-                    .appendText(module.name + " ")
-                    .appendText(paramString)
-                    .appendText(`${module.name}_tb(\n`)
-                    .appendText(instantiatePort(portsName))
-                    .appendText(');\n\n')
-                    .appendText(tieParams(module.name, parametersName))
-                    .appendText("endmodule\n"));
+                    .appendText(commandString(module.name, parametersName))
+                    .appendText(fnDef(module.name, portsName, parametersName))
+                    );
         });
     });
 }
 
 function headerString(moduleName: string): string {
-    let header = "`timescale 1ns / 1ps\n";
-    header += "`include ../../sources/" + moduleName + ".v\n\n";
-    header += "module " + moduleName + "_tests;\n\n";
+    let header = "import os\n";
+    header += "import time\n\n";
+    header += "from myhdl import Cosimulation\n\n\n";
     return header;
 }
 
-function netDeclarations(ports: string[]): string {
-    let nets = "reg ";
+function commandString(moduleName: string, parameters: string[]) : string {
+    let cmd = "cmd = (\"iverilog -o ";
+    cmd += moduleName + ".o ";
+    for (let i = 0; i < parameters.length; i++) {
+        cmd += "-D" + parameters[i].toLowerCase() + "=%s ";
+    }
+    cmd += moduleName + "_tests.v\")\n\n\n";
+    return cmd;
+}
+
+function fnDef(moduleName: string, ports: string[], parameters: string[]) : string {
+    let fn = "def " + moduleName + "(";
+    let offset = "";
+    for (let i = 0; i < fn.length; i++) {
+        offset += " ";
+    }
     for (let i = 0; i < ports.length; i++) {
-        nets += ports[i];
-        if (i !== ports.length - 1) {
-            nets += ", ";
+        if (i !== 0) {
+            fn += offset;
+        }
+        fn += ports[i] + ",\n";
+    }
+    for (let i = 0; i < parameters.length; i++) {
+        if (i !== parameters.length - 1) {
+            fn += offset + parameters[i].toLowerCase() + ",\n";
         } else {
-            nets += ";\n\n";
+            fn += offset + parameters[i].toLowerCase() + "):\n";
         }
     }
-    return nets;
-}
-
-function initialBlock(): string {
-    let initial = "initial begin\n";
-    initial += "\t$from_myhdl()\n";
-    initial += "\t$to_myhdl()\n";
-    initial += "end\n\n";
-    return initial;
-}
-
-function tieParams(moduleName: string, parametersName: string[]) : string {
-    let tied = "";
-    for (let i = 0; i < parametersName.length; i++) {
-        tied += "`defparam " + moduleName + "_tb." + parametersName[i] + " = `" + parametersName[i].toLowerCase() + "\n";
-    }
-    tied += "\n";
-    return tied;
-}
-
-function instantiatePort(ports: string[]): string {
-    let port = '';
-    let max_len = 0;
-    for (let i=0; i<ports.length; i++){
-        if (ports[i].length > max_len) {
-            max_len = ports[i].length;
+    fn += "\tos.system(cmd % (";
+    offset = "\t                 ";
+    for (let i = 0; i < parameters.length; i++) {
+        if (i !== 0) {
+            fn += offset;
+        }
+        if (i !== parameters.length - 1) {
+            fn += parameters[i].toLowerCase() + ",\n";
+        } else {
+            fn += parameters[i].toLowerCase() + "))\n";
         }
     }
-    // .NAME(NAME)
+    fn += "\treturn Cosimulation(";
+    offset = "\t                    ";
+    fn += "\"vvp -m ../iverilog/myhdl.vpi " + moduleName + ".o,\"\n";
     for (let i = 0; i < ports.length; i++) {
-        let element = ports[i];
-        let padding = max_len - element.length + 1;
-        element = element + ' '.repeat(padding);
-        port += `\t.${element}(${element})`;
+        fn += offset + ports[i] + "=" + ports[i];
         if (i !== ports.length - 1) {
-            port += ',';
+            fn += ",\n";
+        } else {
+            fn += ")\n";
         }
-        port += '\n';
     }
-    return port;
+    return fn;
 }
 
 function selectFile(currentDir?: string): Thenable<string> {

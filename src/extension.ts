@@ -6,6 +6,7 @@ import {CtagsManager} from "./ctags";
 
 // Commands
 import * as TestbenchInstantiation from "./commands/TestbenchInstantiation";
+import * as BindInstantiation from "./commands/BindInstantiation";
 
 export let ctagsManager:CtagsManager = new CtagsManager;
 
@@ -19,8 +20,9 @@ export function activate(context: ExtensionContext) {
 	// Configure ctags
 	ctagsManager.configure();
 
-	// Configure command to instantiate a module
+	// Configure commands
 	commands.registerCommand("myhdltools.instantiateTestbench", TestbenchInstantiation.instantiateTestbenchInteract);
+	commands.registerCommand("myhdltools.instantiateBind", BindInstantiation.instantiateBindInteract);
 }
 
 export function deactivate() {
