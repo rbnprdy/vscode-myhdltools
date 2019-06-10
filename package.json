@@ -21,14 +21,17 @@
 	],
 	"main": "./out/extension.js",
 	"contributes": {
-		"commands": [
-			{
+		"commands": [{
 				"command": "myhdltools.instantiateTestbench",
 				"title": "MyHDL Tools: Instantiate Testbench"
 			},
 			{
 				"command": "myhdltools.instantiateBind",
 				"title": "MyHDL Tools: Instantiate Bind"
+			},
+			{
+				"command": "myhdltools.instantiateUnittest",
+				"title": "MyHDL Tools: Instantiate Unittest"
 			}
 		]
 	},

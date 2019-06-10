@@ -3,17 +3,17 @@ import * as path from 'path';
 import { Ctags, Symbol } from "../ctags";
 import { window, QuickPickItem, workspace, SnippetString } from 'vscode';
 
-export function instantiateBindInteract() {
+export function instantiateUnittestInteract() {
     let filePath = path.dirname(window.activeTextEditor!.document.fileName);
     selectFile(filePath).then(srcpath => {
-        instantiateBind(srcpath)
+        instantiateUnittest(srcpath)
             .then(inst => {
                 window.activeTextEditor!.insertSnippet(inst);
             });
     });
 }
 
-function instantiateBind(srcpath: string): Thenable<SnippetString> {
+function instantiateUnittest(srcpath: string): Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
         let moduleName: string | undefined = "";
@@ -64,20 +64,120 @@ function instantiateBind(srcpath: string): Thenable<SnippetString> {
                 console.log(portsName);
                 resolve(new SnippetString()
                     .appendText(headerString(module.name))
-                    .appendText(commandString(module.name, parametersName))
-                    .appendText(portTuple(portsName))
-                    .appendText(paramsTuple(parametersName))
-                    .appendText(fnDef(module.name, portsName, parametersName))
+                    .appendText(classString(module.name, parametersName, portsName))
                 );
             });
     });
 }
 
 function headerString(moduleName: string): string {
-    let header = "import os\n";
-    header += "from collections import namedtuple\n\n";
-    header += "from myhdl import Cosimulation\n\n\n";
+    let header = "import unittest\n\n";
+    header += "from myhdl import Signal, intbv, Simulation, always, delay, StopSimulation\n\n";
+    header += "from " + moduleName + " import " + moduleName + ", Ports, Params\n\n\n";
     return header;
+}
+
+function classString(moduleName: string, parameters: string[], ports: string[]): string {
+    let cls = "class Test" + moduleName + "(unittest.TestCase):\n\n";
+    let offset = "\t";
+    cls += offset + "runTest(self, test, ";
+    offset += "        ";
+    for (let i = 0; i < parameters.length; i++) {
+        let add = parameters[i].toLowerCase() + ", ";
+        if (cls.split("\n")[cls.split("\n").length - 1].length + add.length > 79) {
+            cls += "\n" + offset;
+        }
+        cls += add;
+    }
+    let add = "delay_ns=10):";
+    if (cls.split("\n")[cls.split("\n").length - 1].length + add.length > 79) {
+        cls += "\n" + offset;
+    }
+    cls += add + "\n";
+
+    offset = "\t\t";
+    cls += offset + "# FIXME: Instantiate registers and wires as `Signals`\n" + offset;
+    for (let i = 0; i < ports.length; i++) {
+        cls += ports[i];
+        if (i !== ports.length - 1) {
+            cls += ", ";
+        }
+    }
+    cls += "\n\n";
+
+    cls += offset + "ports = Ports(";
+    offset += "              ";
+    for (let i = 0; i < ports.length; i++) {
+        if (i !== ports.length - 1) {
+            let next = ports[i] + ",";
+            if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
+                cls += "\n" + offset;
+                cls += next;
+            } else if (i !== 0) {
+                cls += " " + next;
+            } else {
+                cls += next;
+            }
+        } else {
+            let next = ports[i] + ")";
+            if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
+                cls += "\n" + offset;
+            }
+            cls += " " + next;
+        }
+    }
+    cls += "\n\n";
+
+    offset = "\t\t";
+    cls += offset + "params = Params(";
+    offset += "                ";
+    for (let i = 0; i < parameters.length; i++) {
+        if (i !== parameters.length - 1) {
+            let next = parameters[i].toLowerCase() + ",";
+            if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
+                cls += "\n" + offset;
+                cls += next;
+            } else if (i !== 0) {
+                cls += " " + next;
+            } else {
+                cls += next;
+            }
+        } else {
+            let next = parameters[i] + ")";
+            if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
+                cls += "\n" + offset;
+            }
+            cls += " " + next;
+        }
+    }
+    cls += "\n\n";
+
+    offset = "\t\t";
+
+    cls += offset + "dut = " + moduleName + "(ports, params)\n\n";
+
+    cls += offset + "@always(delay(delay_ns))\n";
+    cls += offset + "def clockGen():\n";
+    cls += offset + "\t" + "clk.next = not clk\n\n";
+
+    cls += offset + "check = test(ports, params)\n\n";
+
+    cls += offset + "sim = Simulation(dut, clockGen, check)\n";
+    cls += offset + "sim.run()\n";
+
+    cls += "\tdef testExample(self):\n";
+    cls += offset + "def test(ports, params):\n";
+    offset += "\t";
+    cls += offset + "yield ports.clk.negedge\n";
+    cls += offset + "ports.rst.next = 0\n";
+    cls += offset + "yield ports.clk.negedge\n";
+    cls += offset + "raise StopSimulation\n\n";
+    cls += "\t\t# FIXME: Add parameters to function call\n";
+    cls += "\t\tself.runTest(test)\n\n\n";
+
+    cls += "if __name__ == \'__main__\':\n";
+    cls += "\tunittest.main(verbosity=2)\n\n";
+    return cls;
 }
 
 function commandString(moduleName: string, parameters: string[]): string {

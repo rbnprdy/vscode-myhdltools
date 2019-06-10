@@ -6,4 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
-- Initial release
+## [1.0.0] - 2019-06-10
+
+- Added FIXME statements in instantiations to indicate what needs to be modified after instantiation.
+- Fixed a few typos in `TestbenchInstantiation`.
+- Modified `BindInstantiation` to use namedtuples to simplify functions arguments.
+- Added `UnittestInstantiation` to provide a barebones structure for unittests.

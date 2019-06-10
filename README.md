@@ -24,6 +24,8 @@ This package relies on Ctags for parsing. The recommended version to install is 
 
 ## TODO
 
+This code was written very quickly and with little knoledge of Javascript, so it's pretty messy. Readability and redundancy could be improved greatly.
+
 Ideally, this package would enable some more helpful configuration (i.e. where source files are stored, etc.)
 
 Additionally, it would be nice if the creation of files could be automated (when you create a new module, run a command and have it generate the test bench and binding files for that module.)
@@ -35,3 +37,7 @@ Lastly, the ctags implementation being used does not differentiate between wires
 ### 0.0.1
 
 Initial release
+
+### 1.0.0
+
+Added Unittest instantiation and updated testbench and bind instantiation.
