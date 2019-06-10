@@ -1,52 +1,53 @@
 {
-	"name": "myhdltools",
-	"displayName": "MyHDL Tools",
-	"description": "A vscode package that contains some tools for working with MyHDL cosimulation.",
-	"version": "0.0.1",
-	"publisher": "rbnprdy",
-	"homepage": "https://github.com/rbnprdy/vscode-myhdltools",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/rbnprdy/vscode-myhdltools"
-	},
-	"engines": {
-		"vscode": "^1.35.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onLanguage:verilog",
-		"onLanguage:systemverilog"
-	],
-	"main": "./out/extension.js",
-	"contributes": {
-		"commands": [{
-				"command": "myhdltools.instantiateTestbench",
-				"title": "MyHDL Tools: Instantiate Testbench"
-			},
-			{
-				"command": "myhdltools.instantiateBind",
-				"title": "MyHDL Tools: Instantiate Bind"
-			},
-			{
-				"command": "myhdltools.instantiateUnittest",
-				"title": "MyHDL Tools: Instantiate Unittest"
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
-		"postinstall": "node ./node_modules/vscode/bin/install",
-		"test": "npm run compile && node ./node_modules/vscode/bin/test"
-	},
-	"devDependencies": {
-		"typescript": "^3.3.1",
-		"vscode": "^1.1.28",
-		"tslint": "^5.12.1",
-		"@types/node": "^10.12.21",
-		"@types/mocha": "^2.2.42"
-	}
+  "name": "myhdltools",
+  "displayName": "MyHDL Tools",
+  "description": "A vscode package that contains some tools for working with MyHDL cosimulation.",
+  "version": "1.0.0",
+  "publisher": "rbnprdy",
+  "homepage": "https://github.com/rbnprdy/vscode-myhdltools",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rbnprdy/vscode-myhdltools"
+  },
+  "engines": {
+    "vscode": "^1.35.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:verilog",
+    "onLanguage:systemverilog"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "myhdltools.instantiateTestbench",
+        "title": "MyHDL Tools: Instantiate Testbench"
+      },
+      {
+        "command": "myhdltools.instantiateBind",
+        "title": "MyHDL Tools: Instantiate Bind"
+      },
+      {
+        "command": "myhdltools.instantiateUnittest",
+        "title": "MyHDL Tools: Instantiate Unittest"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test": "npm run compile && node ./node_modules/vscode/bin/test"
+  },
+  "devDependencies": {
+    "typescript": "^3.3.1",
+    "vscode": "^1.1.28",
+    "tslint": "^5.12.1",
+    "@types/node": "^10.12.21",
+    "@types/mocha": "^2.2.42"
+  }
 }
