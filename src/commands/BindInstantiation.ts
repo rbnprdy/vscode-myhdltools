@@ -83,7 +83,7 @@ function headerString(moduleName: string): string {
 function commandString(moduleName: string, parameters: string[]): string {
     let cmd = "cmd = (\'iverilog -o ";
     cmd += moduleName + ".o ";
-    let add = "-I ../../sources";
+    let add = "-I ../sources ";
     if (cmd.length + add.length > 79) {
         cmd += "\'\n       \'";
     }
@@ -95,7 +95,7 @@ function commandString(moduleName: string, parameters: string[]): string {
         }
         cmd += add;
     }
-    add = moduleName + "_tests.v\')\n\n\n";
+    add = "test_" + moduleName + ".v\')\n\n\n";
     if (cmd.split("\n")[cmd.split("\n").length - 1].length + add.length > 79) {
         cmd += "\'\n       \'";
     }
@@ -181,7 +181,7 @@ function fnDef(moduleName: string, ports: string[], parameters: string[]): strin
     }
     fn += "\treturn Cosimulation(";
     offset = "\t                    ";
-    fn += "\"vvp -m ../iverilog/myhdl.vpi " + moduleName + ".o,\"\n";
+    fn += "\"vvp -m ./iverilog/myhdl.vpi " + moduleName + ".o,\"\n";
     fn += offset + "**ports._asdict())\n\n";
     return fn;
 }

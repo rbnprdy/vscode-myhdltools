@@ -80,7 +80,7 @@ function headerString(moduleName: string): string {
     let header = "`timescale 1ns / 1ps\n";
     header += "// FIXME: Add any other necessary includes.\n";
     header += "`include \"" + moduleName + ".v\"\n\n";
-    header += "module " + moduleName + "_tests;\n\n";
+    header += "module test_" + moduleName + ";\n\n";
     return header;
 }
 

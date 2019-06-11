@@ -163,7 +163,7 @@ function classString(moduleName: string, parameters: string[], ports: string[]):
     cls += offset + "check = test(ports, params)\n\n";
 
     cls += offset + "sim = Simulation(dut, clockGen, check)\n";
-    cls += offset + "sim.run()\n";
+    cls += offset + "sim.run()\n\n";
 
     cls += "\tdef testExample(self):\n";
     cls += offset + "def test(ports, params):\n";
@@ -178,112 +178,6 @@ function classString(moduleName: string, parameters: string[], ports: string[]):
     cls += "if __name__ == \'__main__\':\n";
     cls += "\tunittest.main(verbosity=2)\n\n";
     return cls;
-}
-
-function commandString(moduleName: string, parameters: string[]): string {
-    let cmd = "cmd = (\'iverilog -o ";
-    cmd += moduleName + ".o ";
-    let add = "-I ../../sources";
-    if (cmd.length + add.length > 79) {
-        cmd += "\'\n       \'";
-    }
-    cmd += add;
-    for (let i = 0; i < parameters.length; i++) {
-        add = "-D" + parameters[i].toLowerCase() + "=%s ";
-        if (cmd.split("\n")[cmd.split("\n").length - 1].length + add.length > 79) {
-            cmd += "\'\n       \'";
-        }
-        cmd += add;
-    }
-    add = moduleName + "_tests.v\')\n\n\n";
-    if (cmd.split("\n")[cmd.split("\n").length - 1].length + add.length > 79) {
-        cmd += "\'\n       \'";
-    }
-    cmd += add;
-    return cmd;
-}
-
-function portTuple(ports: string[]): string {
-    let tuple = "Ports = namedtuple(\'ports\', ";
-    let offset = "";
-    for (let i = 0; i < tuple.length; i++) {
-        offset += " ";
-    }
-    tuple += "\'";
-    for (let i = 0; i < ports.length; i++) {
-        if (i !== ports.length - 1) {
-            let next = ports[i] + ",";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-                tuple += next;
-            } else if (i !== 0) {
-                tuple += " " + next;
-            } else {
-                tuple += next;
-            }
-        } else {
-            let next = ports[i] + "\')";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-            }
-            tuple += next;
-        }
-    }
-    tuple += "\n\n";
-
-    return tuple;
-}
-
-function paramsTuple(params: string[]): string {
-    let tuple = "Params = namedtuple(\'params\', ";
-    let offset = "";
-    for (let i = 0; i < tuple.length; i++) {
-        offset += " ";
-    }
-    tuple += "\'";
-    for (let i = 0; i < params.length; i++) {
-        if (i !== params.length - 1) {
-            let next = params[i].toLowerCase() + ",";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-                tuple += next;
-            } else if (i !== 0) {
-                tuple += " " + next;
-            } else {
-                tuple += next;
-            }
-        } else {
-            let next = params[i] + "\')";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-            }
-            tuple += next;
-        }
-    }
-    tuple += "\n\n";
-
-    return tuple;
-}
-
-function fnDef(moduleName: string, ports: string[], parameters: string[]): string {
-    let fn = "def " + moduleName + "(ports, params):\n";
-    fn += "\tos.system(cmd % (";
-    let offset = "\t                 ";
-    for (let i = 0; i < parameters.length; i++) {
-        if (i !== 0) {
-            fn += offset;
-        }
-        if (i !== parameters.length - 1) {
-            fn += "params." + parameters[i].toLowerCase() + ",\n";
-        } else {
-            fn += "params." + parameters[i].toLowerCase() + "))\n";
-        }
-    }
-    fn += "\treturn Cosimulation(";
-    offset = "\t                    ";
-    fn += "\"vvp -m ../iverilog/myhdl.vpi " + moduleName + ".o,\"\n";
-    fn += offset + "**ports._asdict())\n\n";
-    return fn;
 }
 
 function selectFile(currentDir?: string): Thenable<string> {
