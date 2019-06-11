@@ -2,7 +2,7 @@
   "name": "myhdltools",
   "displayName": "MyHDL Tools",
   "description": "A vscode package that contains some tools for working with MyHDL cosimulation.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "rbnprdy",
   "homepage": "https://github.com/rbnprdy/vscode-myhdltools",
   "repository": {
