@@ -2,7 +2,7 @@
   "name": "myhdltools",
   "displayName": "MyHDL Tools",
   "description": "A vscode package that contains some tools for working with MyHDL cosimulation.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publisher": "rbnprdy",
   "homepage": "https://github.com/rbnprdy/vscode-myhdltools",
   "repository": {
@@ -21,7 +21,8 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [{
+    "commands": [
+      {
         "command": "myhdltools.instantiateTestbench",
         "title": "MyHDL Tools: Instantiate Testbench"
       },
@@ -34,17 +35,18 @@
         "title": "MyHDL Tools: Instantiate Unittest"
       }
     ],
-    "configuration": [{
-      "title": "MyHDL Tools Configuration",
-      "properties": {
-        "myhdltools.iverilog.myhdlvpiPath": {
-          "type": "string",
-          "default": "../iverilog/myhdl.vpi",
-          "description": "Default path to use for the myhdl vpi when instantiating the bind code."
+    "configuration": [
+      {
+        "title": "MyHDL Tools Configuration",
+        "properties": {
+          "myhdltools.iverilog.myhdlvpiPath": {
+            "type": "string",
+            "default": "../iverilog/myhdl.vpi",
+            "description": "Default path to use for the myhdl vpi when instantiating the bind code."
+          }
         }
       }
-
-    }]
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
