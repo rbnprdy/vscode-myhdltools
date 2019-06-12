@@ -83,7 +83,8 @@ function headerString(moduleName: string): string {
 function commandString(moduleName: string, parameters: string[]): string {
     let cmd = "cmd = (\'iverilog -o ";
     cmd += moduleName + ".o ";
-    let add = "-I ../sources ";
+    let sourcesPath = <string>workspace.getConfiguration().get('myhdltools.bindInstantiation.sourcesPath');
+    let add = "-I " + sourcesPath + " ";
     if (cmd.length + add.length > 79) {
         cmd += "\'\n       \'";
     }
@@ -181,7 +182,7 @@ function fnDef(moduleName: string, ports: string[], parameters: string[]): strin
     }
     fn += "\treturn Cosimulation(";
     offset = "\t                    ";
-    let vpiPath = <string>workspace.getConfiguration().get('myhdltools.iverilog.myhdlvpiPath');
+    let vpiPath = <string>workspace.getConfiguration().get('myhdltools.bindInstantiation.myhdlvpiPath');
     fn += "\"vvp -m " + vpiPath + " " + moduleName + ".o, \"\n";
     fn += offset + "**ports._asdict())\n\n";
     return fn;
