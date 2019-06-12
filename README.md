@@ -41,3 +41,7 @@ Initial release
 ### 1.0.0
 
 Added Unittest instantiation and updated testbench and bind instantiation.
+
+### 1.1.0
+
+Added user setting to modify default iverilog myhdl.vpi path.

@@ -181,7 +181,8 @@ function fnDef(moduleName: string, ports: string[], parameters: string[]): strin
     }
     fn += "\treturn Cosimulation(";
     offset = "\t                    ";
-    fn += "\"vvp -m ./iverilog/myhdl.vpi " + moduleName + ".o,\"\n";
+    let vpiPath = <string>workspace.getConfiguration().get('myhdltools.iverilog.myhdlvpiPath');
+    fn += "\"vvp -m " + vpiPath + " " + moduleName + ".o, \"\n";
     fn += offset + "**ports._asdict())\n\n";
     return fn;
 }

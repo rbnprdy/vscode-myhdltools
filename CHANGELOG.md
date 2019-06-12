@@ -16,3 +16,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### [1.0.1] - 2019-06-11
 
 - Modified `unittestInstantiation` and `BindInstantiation` starting points.
+
+### [1.1.0] - 2019-06-12
+
+- Changed iverilog location to reference a user setting.

@@ -21,8 +21,7 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
+    "commands": [{
         "command": "myhdltools.instantiateTestbench",
         "title": "MyHDL Tools: Instantiate Testbench"
       },
@@ -34,7 +33,18 @@
         "command": "myhdltools.instantiateUnittest",
         "title": "MyHDL Tools: Instantiate Unittest"
       }
-    ]
+    ],
+    "configuration": [{
+      "title": "MyHDL Tools Configuration",
+      "properties": {
+        "myhdltools.iverilog.myhdlvpiPath": {
+          "type": "string",
+          "default": "../iverilog/myhdl.vpi",
+          "description": "Default path to use for the myhdl vpi when instantiating the bind code."
+        }
+      }
+
+    }]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
