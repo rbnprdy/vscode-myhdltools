@@ -28,3 +28,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### [2.0.0] - 2019-06-13
 
 - Rewrote ctags integration to enable differentiation between input and output ports. Integrated this functionality into the instantiations.
+
+### [2.1.0] - 2019-06-13
+
+- Added file creation and fixed some bugs in unittest instantiation.

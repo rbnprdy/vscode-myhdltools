@@ -22,10 +22,6 @@ This package relies on Ctags for parsing. The recommended version to install is 
 - Linux - Installation instructions are here
 - macOS - Install through Homebrew from here
 
-## TODO
-
-It would be nice if the creation of files could be automated (when you create a new module, run a command and have it generate the test bench and binding files for that module.)
-
 ## Release Notes
 
 ### 0.0.1
@@ -47,3 +43,7 @@ Added user setting to modify default sources path.
 ### 2.0.0
 
 Added functionality for differentiating between input and output ports.
+
+### 2.1.0
+
+Added file creation functionality.

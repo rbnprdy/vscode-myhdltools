@@ -13,7 +13,7 @@ export function instantiateUnittestInteract() {
     });
 }
 
-function instantiateUnittest(srcpath: string): Thenable<SnippetString> {
+export function instantiateUnittest(srcpath: string): Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
         let input_ports: Symbol[];
@@ -93,11 +93,11 @@ function signalForBus(bus: string | undefined): string {
     // Special formatting for clog2 function
     // FIXME: What if the lower index is not zero?
     if (bus!.includes('$clog2(')) {
-        return "Signal(0)[" + bus.slice(bus.indexOf('(') + 1, bus.indexOf(')')).toLowerCase() + ".bit_length():0]";
+        return "Signal(intbv(0)[" + bus.slice(bus.indexOf('(') + 1, bus.indexOf(')')).toLowerCase() + ".bit_length():0])";
     } else if (bus!.includes("-")) {
-        return "Signal(0)[" + bus.slice(bus.indexOf('[') + 1, bus.indexOf('-')).toLowerCase() + ":0]";
+        return "Signal(intbv(0)[" + bus.slice(bus.indexOf('[') + 1, bus.indexOf('-')).toLowerCase() + ":0])";
     } else {
-        return "Signal(0)[" + bus.slice(bus.indexOf('[') + 1, bus.indexOf(':')).toLowerCase() + "-1:0]";
+        return "Signal(intbv(0)[" + bus.slice(bus.indexOf('[') + 1, bus.indexOf(':')).toLowerCase() + "-1:0])";
     }
 }
 
@@ -136,8 +136,8 @@ function headerString(moduleName: string): string {
 function classString(moduleName: string, parameters: string[], input_ports: Symbol[], output_ports: Symbol[]): string {
     let cls = "class Test" + moduleName + "(unittest.TestCase):\n\n";
     let offset = "\t";
-    cls += offset + "runTest(self, test, ";
-    offset += "        ";
+    cls += offset + "def runTest(self, test, ";
+    offset += "            ";
     for (let i = 0; i < parameters.length; i++) {
         let add = parameters[i].toLowerCase() + ", ";
         if (cls.split("\n")[cls.split("\n").length - 1].length + add.length > 79) {
@@ -153,10 +153,7 @@ function classString(moduleName: string, parameters: string[], input_ports: Symb
 
     offset = "\t\t";
     cls += declarePorts(input_ports, offset);
-    cls += "\n" + declarePorts(output_ports, offset);
-
-
-    cls += "\n\n";
+    cls += "\n" + declarePorts(output_ports, offset) + "\n";
 
     cls += offset + "input_ports = InputPorts(";
     offset += "                         ";
@@ -236,26 +233,37 @@ function classString(moduleName: string, parameters: string[], input_ports: Symb
 
     cls += offset + "dut = " + moduleName + "(input_ports, output_ports, params)\n\n";
 
-    cls += offset + "@always(delay(delay_ns))\n";
-    cls += offset + "def clockGen():\n";
-    cls += offset + "\t" + "clk.next = not clk\n\n";
+    var hasClk = false;
+    for (let i = 0; i < input_ports.length; i++) {
+        if (input_ports[i].name === "clk") {
+            hasClk = true;
+        }
+    }
+    if (hasClk) {
+        cls += offset + "@always(delay(delay_ns))\n";
+        cls += offset + "def clockGen():\n";
+        cls += offset + "\t" + "clk.next = not clk\n\n";
+    }
 
     cls += offset + "check = test(input_ports, output_ports, params)\n\n";
 
-    cls += offset + "sim = Simulation(dut, clockGen, check)\n";
+    if (hasClk) {
+        cls += offset + "sim = Simulation(dut, clockGen, check)\n";
+    } else {
+        cls += offset + "sim = Simulation(dut, check)\n";
+    }
+
     cls += offset + "sim.run()\n\n";
 
     cls += "\tdef testExample(self):\n";
     cls += offset + "def test(input_ports, output_ports, params):\n";
     offset += "\t";
-    cls += offset + "yield input_ports.clk.negedge\n";
-    cls += offset + "input_ports.rst.next = 0\n";
-    cls += offset + "yield input_ports.clk.negedge\n";
+    cls += offset + "# Test some stuff\n";
     cls += offset + "raise StopSimulation\n\n";
     cls += "\t\t# FIXME: Add parameters to function call\n";
     cls += "\t\tself.runTest(test)\n\n\n";
 
     cls += "if __name__ == \'__main__\':\n";
-    cls += "\tunittest.main(verbosity=2)\n\n";
+    cls += "\tunittest.main(verbosity=2)\n";
     return cls;
 }

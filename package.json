@@ -21,8 +21,7 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
+    "commands": [{
         "command": "myhdltools.instantiateTestbench",
         "title": "MyHDL Tools: Instantiate Testbench"
       },
@@ -33,33 +32,35 @@
       {
         "command": "myhdltools.instantiateUnittest",
         "title": "MyHDL Tools: Instantiate Unittest"
+      },
+      {
+        "command": "myhdltools.createMoudleTestFiles",
+        "title": "MyHDL Tools: Create Module Test Files"
       }
     ],
-    "configuration": [
-      {
-        "title": "MyHDL Tools Configuration",
-        "properties": {
-          "myhdltools.bindInstantiation.myhdlvpiPath": {
-            "type": "string",
-            "default": "../iverilog/myhdl.vpi",
-            "description": "The path to use for the myhdl vpi when instantiating the bind code."
-          },
-          "myhdltools.bindInstantiation.sourcesPath": {
-            "type": "string",
-            "default": "../sources/",
-            "description": "The path to use to point to verilog sources when instantiating the bind code."
-          },
-          "myhdltools.tetbenchInstantiation.includeFile": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "default": null,
-            "description": "Override the include file specified at the top of the testbench."
-          }
+    "configuration": [{
+      "title": "MyHDL Tools Configuration",
+      "properties": {
+        "myhdltools.bindInstantiation.myhdlvpiPath": {
+          "type": "string",
+          "default": "../iverilog/myhdl.vpi",
+          "description": "The path to use for the myhdl vpi when instantiating the bind code."
+        },
+        "myhdltools.bindInstantiation.sourcesPath": {
+          "type": "string",
+          "default": "../sources/",
+          "description": "The path to use to point to verilog sources when instantiating the bind code."
+        },
+        "myhdltools.tetbenchInstantiation.includeFile": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Override the include file specified at the top of the testbench."
         }
       }
-    ]
+    }]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

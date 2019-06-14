@@ -13,7 +13,7 @@ export function instantiateBindInteract() {
     });
 }
 
-function instantiateBind(srcpath: string): Thenable<SnippetString> {
+export function instantiateBind(srcpath: string): Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
         let moduleName: string | undefined = "";

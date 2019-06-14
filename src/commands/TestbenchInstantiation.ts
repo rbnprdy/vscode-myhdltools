@@ -13,7 +13,7 @@ export function instantiateTestbenchInteract() {
     });
 }
 
-function instantiateTestbench(srcpath: string): Thenable<SnippetString> {
+export function instantiateTestbench(srcpath: string): Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
         let input_ports: Symbol[];
@@ -133,6 +133,7 @@ function netDeclarations(input_ports: Symbol[], output_ports: Symbol[]): string 
 
 function initialBlock(input_ports: Symbol[], output_ports: Symbol[]): string {
     let initial = "initial begin\n";
+    // FIXME: This prints an extra backslash character when using file creation. IDK why.
     initial += "\t$from_myhdl(" + input_ports.map(tag => tag.name).join(', ') + ");\n";
     initial += "\t$to_myhdl(" + output_ports.map(tag => tag.name).join(', ') + ");\n";
     initial += "end\n\n";
