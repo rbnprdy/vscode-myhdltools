@@ -1,7 +1,7 @@
-import * as fs from 'fs';
 import * as path from 'path';
-import { Ctags, Symbol } from "../ctags";
-import { window, QuickPickItem, workspace, SnippetString } from 'vscode';
+import { Ctags, Symbol } from '../ctags';
+import { window, workspace, SnippetString } from 'vscode';
+import { appendNames, selectFile } from '../utils';
 
 export function instantiateBindInteract() {
     let filePath = path.dirname(window.activeTextEditor!.document.fileName);
@@ -17,9 +17,11 @@ function instantiateBind(srcpath: string): Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
         let moduleName: string | undefined = "";
-        let portsName: string[] = [];
+        let input_ports: Symbol[];
+        let output_ports: Symbol[];
         let parametersName: string[] = [];
-        let ctags: ModuleTags = new ModuleTags;
+        let ctags: Ctags = new Ctags;
+        let portsName: string[] = [];
         console.log("Executing ctags for module instantiation");
         ctags.execCtags(srcpath)
             .then(output => {
@@ -52,20 +54,19 @@ function instantiateBind(srcpath: string): Thenable<SnippetString> {
                     return;
                 }
                 let scope = (module.parentScope !== "") ? module.parentScope + "." + module.name : module.name;
-                let ports: Symbol[] = ctags.symbols.filter(tag => tag.type === "port" &&
+                input_ports = ctags.symbols.filter(tag => tag.type === "input" &&
                     tag.parentType === "module" &&
                     tag.parentScope === scope);
-                portsName = ports.map(tag => tag.name);
-                let params: Symbol[] = ctags.symbols.filter(tag => tag.type === "constant" &&
+                output_ports = ctags.symbols.filter(tag => tag.type === "output" &&
                     tag.parentType === "module" &&
                     tag.parentScope === scope);
-                parametersName = params.map(tag => tag.name);
-                console.log(module);
-                console.log(portsName);
+                parametersName = ctags.symbols.filter(tag => tag.type === "parameter" &&
+                    tag.parentType === "module" &&
+                    tag.parentScope === scope).map(tag => tag.name);
                 resolve(new SnippetString()
                     .appendText(headerString(module.name))
                     .appendText(commandString(module.name, parametersName))
-                    .appendText(portTuple(portsName))
+                    .appendText(portTuples(input_ports, output_ports))
                     .appendText(paramsTuple(parametersName))
                     .appendText(fnDef(module.name, portsName, parametersName))
                 );
@@ -104,70 +105,28 @@ function commandString(moduleName: string, parameters: string[]): string {
     return cmd;
 }
 
-function portTuple(ports: string[]): string {
-    let tuple = "Ports = namedtuple(\'ports\', ";
-    let offset = "";
-    for (let i = 0; i < tuple.length; i++) {
-        offset += " ";
-    }
-    tuple += "\'";
-    for (let i = 0; i < ports.length; i++) {
-        if (i !== ports.length - 1) {
-            let next = ports[i] + ",";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-                tuple += next;
-            } else if (i !== 0) {
-                tuple += " " + next;
-            } else {
-                tuple += next;
-            }
-        } else {
-            let next = ports[i] + "\')";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-            }
-            tuple += next;
-        }
-    }
-    tuple += "\n\n";
+function portTuples(input_ports: Symbol[], output_ports: Symbol[]): string {
+    let input_tuple = "InputPorts = namedtuple(\'input_ports\', \'";
+    input_tuple = appendNames(input_tuple, input_ports.map(tag => tag.name));
+    input_tuple += "\')\n\n";
 
-    return tuple;
+    let output_tuple = "OutputPorts = namedtuple(\'output_ports\', \'";
+    output_tuple = appendNames(output_tuple, output_ports.map(tag => tag.name));
+    output_tuple += "\')\n\n";
+
+    return input_tuple + output_tuple;
 }
 
 function paramsTuple(params: string[]): string {
-    let tuple = "Params = namedtuple(\'params\', ";
-    let offset = "";
-    for (let i = 0; i < tuple.length; i++) {
-        offset += " ";
-    }
-    tuple += "\'";
-    for (let i = 0; i < params.length; i++) {
-        if (i !== params.length - 1) {
-            let next = params[i].toLowerCase() + ",";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-                tuple += next;
-            } else if (i !== 0) {
-                tuple += " " + next;
-            } else {
-                tuple += next;
-            }
-        } else {
-            let next = params[i] + "\')";
-            if (tuple.split("\n")[tuple.split("\n").length - 1].length + next.length > 79) {
-                tuple += "\'\n" + offset + "\'";
-            }
-            tuple += next;
-        }
-    }
-    tuple += "\n\n";
+    let tuple = "Params = namedtuple(\'params\', \'";
+    tuple = appendNames(tuple, params.map(tag => tag.toLowerCase()));
+    tuple += "\')\n\n";
 
     return tuple;
 }
 
 function fnDef(moduleName: string, ports: string[], parameters: string[]): string {
-    let fn = "def " + moduleName + "(ports, params):\n";
+    let fn = "def " + moduleName + "(input_ports, output_ports, params):\n";
     fn += "\tos.system(cmd % (";
     let offset = "\t                 ";
     for (let i = 0; i < parameters.length; i++) {
@@ -184,82 +143,6 @@ function fnDef(moduleName: string, ports: string[], parameters: string[]): strin
     offset = "\t                    ";
     let vpiPath = <string>workspace.getConfiguration().get('myhdltools.bindInstantiation.myhdlvpiPath');
     fn += "\"vvp -m " + vpiPath + " " + moduleName + ".o, \"\n";
-    fn += offset + "**ports._asdict())\n\n";
+    fn += offset + "**input_ports._asdict(), **output_ports._asdict())\n\n";
     return fn;
-}
-
-function selectFile(currentDir?: string): Thenable<string> {
-    currentDir = currentDir || workspace.rootPath;
-
-    let dirs = getDirectories(currentDir!);
-    // if is subdirectory, add '../'
-    if (currentDir !== workspace.rootPath) {
-        dirs.unshift('..');
-    }
-    // all files ends with '.sv'
-    let files = getFiles(currentDir!)
-        .filter(file => file.endsWith('.v') || file.endsWith('.sv'));
-
-    // available quick pick items
-    // Indicate folders in the Quick pick
-    let items: QuickPickItem[] = [];
-    dirs.forEach(dir => {
-        items.push({
-            label: dir,
-            description: "folder"
-        });
-    });
-    files.forEach(file => {
-        items.push({
-            label: file
-        });
-    });
-
-    return window.showQuickPick(items, {
-        placeHolder: "Choose the module file"
-    }).then(selected => {
-
-        // if is a directory
-        let optionalLocation = path.join(currentDir!, selected!.label);
-        let location = optionalLocation!;
-        if (fs.statSync(location).isDirectory()) {
-            return selectFile(location);
-        }
-
-        // return file path
-        return location;
-    });
-}
-
-function getDirectories(srcpath: string): string[] {
-    return fs.readdirSync(srcpath)
-        .filter(file => fs.statSync(path.join(srcpath, file)).isDirectory());
-}
-
-function getFiles(srcpath: string): string[] {
-    return fs.readdirSync(srcpath)
-        .filter(file => fs.statSync(path.join(srcpath, file)).isFile());
-}
-
-class ModuleTags extends Ctags {
-    buildSymbolsList(tags: string): Thenable<void> | undefined {
-        console.log("building symbols");
-        if (tags === '') {
-            console.log("No output from ctags");
-            return;
-        }
-        // Parse ctags output
-        let lines: string[] = tags.split(/\r?\n/);
-        lines.forEach(line => {
-            if (line !== '') {
-                let tag: Symbol = this.parseTagLine(line)!;
-                // add only modules and ports
-                if (tag.type === "module" || tag.type === "port" || tag.type === "constant") {
-                    this.symbols.push(tag);
-                }
-            }
-        });
-        // skip finding end tags
-        console.log(this.symbols);
-    }
 }

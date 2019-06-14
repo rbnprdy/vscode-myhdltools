@@ -24,3 +24,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### [1.1.1] - 2019-06-12
 
 - Added user setting to modify default sources path.
+
+### [2.0.0] - 2019-06-13
+
+- Rewrote ctags integration to enable differentiation between input and output ports. Integrated this functionality into the instantiations.

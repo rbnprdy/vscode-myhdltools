@@ -1,7 +1,7 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import { Ctags, Symbol } from "../ctags";
-import { window, QuickPickItem, workspace, SnippetString } from 'vscode';
+import { window, SnippetString } from 'vscode';
+import { selectFile } from '../utils';
 
 export function instantiateUnittestInteract() {
     let filePath = path.dirname(window.activeTextEditor!.document.fileName);
@@ -16,15 +16,18 @@ export function instantiateUnittestInteract() {
 function instantiateUnittest(srcpath: string): Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
+        let input_ports: Symbol[];
+        let output_ports: Symbol[];
         let moduleName: string | undefined = "";
         let portsName: string[] = [];
         let parametersName: string[] = [];
-        let ctags: ModuleTags = new ModuleTags;
+        let ctags: Ctags = new Ctags;
         console.log("Executing ctags for module instantiation");
         ctags.execCtags(srcpath)
             .then(output => {
                 ctags.buildSymbolsList(output);
             }).then(async () => {
+                // FIXME: This code is present in all instantiations and should be abstracted out but idk how because it uses the `await` function.
                 let module: Symbol;
                 let modules: Symbol[] = ctags.symbols.filter(tag => tag.type === "module");
                 // No modules found
@@ -52,32 +55,85 @@ function instantiateUnittest(srcpath: string): Thenable<SnippetString> {
                     return;
                 }
                 let scope = (module.parentScope !== "") ? module.parentScope + "." + module.name : module.name;
-                let ports: Symbol[] = ctags.symbols.filter(tag => tag.type === "port" &&
+                input_ports = ctags.symbols.filter(tag => tag.type === "input" &&
                     tag.parentType === "module" &&
                     tag.parentScope === scope);
-                portsName = ports.map(tag => tag.name);
-                let params: Symbol[] = ctags.symbols.filter(tag => tag.type === "constant" &&
+                output_ports = ctags.symbols.filter(tag => tag.type === "output" &&
                     tag.parentType === "module" &&
                     tag.parentScope === scope);
-                parametersName = params.map(tag => tag.name);
+                portsName = input_ports.map(tag => tag.name).concat(output_ports.map(tag => tag.name));
+                parametersName = ctags.symbols.filter(tag => tag.type === "parameter" &&
+                    tag.parentType === "module" &&
+                    tag.parentScope === scope).map(tag => tag.name);
                 console.log(module);
                 console.log(portsName);
                 resolve(new SnippetString()
                     .appendText(headerString(module.name))
-                    .appendText(classString(module.name, parametersName, portsName))
+                    .appendText(classString(module.name, parametersName, input_ports, output_ports))
                 );
             });
     });
 }
 
+// https://stackoverflow.com/questions/14696326/break-array-of-objects-into-separate-arrays-based-on-a-property
+export const groupBy = <T>(array: Array<T>, property: (x: T) => string): { [key: string]: Array<T> } =>
+    array.reduce((memo: { [key: string]: Array<T> }, x: T) => {
+        if (!memo[property(x)]) {
+            memo[property(x)] = [];
+        }
+        memo[property(x)].push(x);
+        return memo;
+    }, {});
+export default groupBy;
+
+function signalForBus(bus: string | undefined): string {
+    if (!bus) {
+        return "Signal(bool(0))";
+    }
+    // Special formatting for clog2 function
+    // FIXME: What if the lower index is not zero?
+    if (bus!.includes('$clog2(')) {
+        return "Signal(0)[" + bus.slice(bus.indexOf('(') + 1, bus.indexOf(')')).toLowerCase() + ".bit_length():0]";
+    } else if (bus!.includes("-")) {
+        return "Signal(0)[" + bus.slice(bus.indexOf('[') + 1, bus.indexOf('-')).toLowerCase() + ":0]";
+    } else {
+        return "Signal(0)[" + bus.slice(bus.indexOf('[') + 1, bus.indexOf(':')).toLowerCase() + "-1:0]";
+    }
+}
+
+function declarePorts(ports: Symbol[], offset: string): string {
+    // FIXME: This function should check if we're over 79 characters and newline if so
+    let str = offset;
+    let curr_bus: String | undefined = ports[0].bus;
+    let curr_ports: Symbol[] = [];
+    for (let i = 0; i < ports.length; i++) {
+        if (ports[i].bus === curr_bus) {
+            curr_ports.push(ports[i]);
+        } else {
+            curr_bus = ports[i].bus;
+            curr_ports = [ports[i]];
+        }
+
+        if (i === ports.length - 1 || ports[i].bus !== ports[i + 1].bus) {
+            str += curr_ports.map(tag => tag.name).join(', ');
+            if (curr_ports.length === 1) {
+                str += " = " + signalForBus(curr_ports[0].bus) + "\n" + offset;
+            } else {
+                str += " = [" + signalForBus(curr_ports[0].bus) + " for _ in range(" + curr_ports.length + ")]\n" + offset;
+            }
+        }
+    }
+    return str;
+}
+
 function headerString(moduleName: string): string {
     let header = "import unittest\n\n";
     header += "from myhdl import Signal, intbv, Simulation, always, delay, StopSimulation\n\n";
-    header += "from " + moduleName + " import " + moduleName + ", Ports, Params\n\n\n";
+    header += "from " + moduleName + " import " + moduleName + ", InputPorts, OutputPorts, Params\n\n\n";
     return header;
 }
 
-function classString(moduleName: string, parameters: string[], ports: string[]): string {
+function classString(moduleName: string, parameters: string[], input_ports: Symbol[], output_ports: Symbol[]): string {
     let cls = "class Test" + moduleName + "(unittest.TestCase):\n\n";
     let offset = "\t";
     cls += offset + "runTest(self, test, ";
@@ -96,20 +152,17 @@ function classString(moduleName: string, parameters: string[], ports: string[]):
     cls += add + "\n";
 
     offset = "\t\t";
-    cls += offset + "# FIXME: Instantiate registers and wires as `Signals`\n" + offset;
-    for (let i = 0; i < ports.length; i++) {
-        cls += ports[i];
-        if (i !== ports.length - 1) {
-            cls += ", ";
-        }
-    }
+    cls += declarePorts(input_ports, offset);
+    cls += "\n" + declarePorts(output_ports, offset);
+
+
     cls += "\n\n";
 
-    cls += offset + "ports = Ports(";
-    offset += "              ";
-    for (let i = 0; i < ports.length; i++) {
-        if (i !== ports.length - 1) {
-            let next = ports[i] + ",";
+    cls += offset + "input_ports = InputPorts(";
+    offset += "                         ";
+    for (let i = 0; i < input_ports.length; i++) {
+        if (i !== input_ports.length - 1) {
+            let next = input_ports[i].name + ",";
             if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
                 cls += "\n" + offset;
                 cls += next;
@@ -119,11 +172,38 @@ function classString(moduleName: string, parameters: string[], ports: string[]):
                 cls += next;
             }
         } else {
-            let next = ports[i] + ")";
+            let next = input_ports[i].name + ")";
+            if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
+                cls += "\n" + offset + next;
+            } else {
+                cls += " " + next;
+            }
+
+        }
+    }
+    cls += "\n\n";
+
+    offset = "\t\t";
+    cls += offset + "output_ports = OutputPorts(";
+    offset += "                           ";
+    for (let i = 0; i < output_ports.length; i++) {
+        if (i !== output_ports.length - 1) {
+            let next = output_ports[i].name + ",";
             if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
                 cls += "\n" + offset;
+                cls += next;
+            } else if (i !== 0) {
+                cls += " " + next;
+            } else {
+                cls += next;
             }
-            cls += " " + next;
+        } else {
+            let next = output_ports[i].name + ")";
+            if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
+                cls += "\n" + offset + next;
+            } else {
+                cls += " " + next;
+            }
         }
     }
     cls += "\n\n";
@@ -143,7 +223,7 @@ function classString(moduleName: string, parameters: string[], ports: string[]):
                 cls += next;
             }
         } else {
-            let next = parameters[i] + ")";
+            let next = parameters[i].toLowerCase() + ")";
             if (cls.split("\n")[cls.split("\n").length - 1].length + next.length > 79) {
                 cls += "\n" + offset;
             }
@@ -154,23 +234,23 @@ function classString(moduleName: string, parameters: string[], ports: string[]):
 
     offset = "\t\t";
 
-    cls += offset + "dut = " + moduleName + "(ports, params)\n\n";
+    cls += offset + "dut = " + moduleName + "(input_ports, output_ports, params)\n\n";
 
     cls += offset + "@always(delay(delay_ns))\n";
     cls += offset + "def clockGen():\n";
     cls += offset + "\t" + "clk.next = not clk\n\n";
 
-    cls += offset + "check = test(ports, params)\n\n";
+    cls += offset + "check = test(input_ports, output_ports, params)\n\n";
 
     cls += offset + "sim = Simulation(dut, clockGen, check)\n";
     cls += offset + "sim.run()\n\n";
 
     cls += "\tdef testExample(self):\n";
-    cls += offset + "def test(ports, params):\n";
+    cls += offset + "def test(input_ports, output_ports, params):\n";
     offset += "\t";
-    cls += offset + "yield ports.clk.negedge\n";
-    cls += offset + "ports.rst.next = 0\n";
-    cls += offset + "yield ports.clk.negedge\n";
+    cls += offset + "yield input_ports.clk.negedge\n";
+    cls += offset + "input_ports.rst.next = 0\n";
+    cls += offset + "yield input_ports.clk.negedge\n";
     cls += offset + "raise StopSimulation\n\n";
     cls += "\t\t# FIXME: Add parameters to function call\n";
     cls += "\t\tself.runTest(test)\n\n\n";
@@ -178,80 +258,4 @@ function classString(moduleName: string, parameters: string[], ports: string[]):
     cls += "if __name__ == \'__main__\':\n";
     cls += "\tunittest.main(verbosity=2)\n\n";
     return cls;
-}
-
-function selectFile(currentDir?: string): Thenable<string> {
-    currentDir = currentDir || workspace.rootPath;
-
-    let dirs = getDirectories(currentDir!);
-    // if is subdirectory, add '../'
-    if (currentDir !== workspace.rootPath) {
-        dirs.unshift('..');
-    }
-    // all files ends with '.sv'
-    let files = getFiles(currentDir!)
-        .filter(file => file.endsWith('.v') || file.endsWith('.sv'));
-
-    // available quick pick items
-    // Indicate folders in the Quick pick
-    let items: QuickPickItem[] = [];
-    dirs.forEach(dir => {
-        items.push({
-            label: dir,
-            description: "folder"
-        });
-    });
-    files.forEach(file => {
-        items.push({
-            label: file
-        });
-    });
-
-    return window.showQuickPick(items, {
-        placeHolder: "Choose the module file"
-    }).then(selected => {
-
-        // if is a directory
-        let optionalLocation = path.join(currentDir!, selected!.label);
-        let location = optionalLocation!;
-        if (fs.statSync(location).isDirectory()) {
-            return selectFile(location);
-        }
-
-        // return file path
-        return location;
-    });
-}
-
-function getDirectories(srcpath: string): string[] {
-    return fs.readdirSync(srcpath)
-        .filter(file => fs.statSync(path.join(srcpath, file)).isDirectory());
-}
-
-function getFiles(srcpath: string): string[] {
-    return fs.readdirSync(srcpath)
-        .filter(file => fs.statSync(path.join(srcpath, file)).isFile());
-}
-
-class ModuleTags extends Ctags {
-    buildSymbolsList(tags: string): Thenable<void> | undefined {
-        console.log("building symbols");
-        if (tags === '') {
-            console.log("No output from ctags");
-            return;
-        }
-        // Parse ctags output
-        let lines: string[] = tags.split(/\r?\n/);
-        lines.forEach(line => {
-            if (line !== '') {
-                let tag: Symbol = this.parseTagLine(line)!;
-                // add only modules and ports
-                if (tag.type === "module" || tag.type === "port" || tag.type === "constant") {
-                    this.symbols.push(tag);
-                }
-            }
-        });
-        // skip finding end tags
-        console.log(this.symbols);
-    }
 }

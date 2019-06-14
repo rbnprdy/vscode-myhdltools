@@ -1,7 +1,7 @@
-import * as fs from 'fs';
 import * as path from 'path';
-import { Ctags, Symbol } from "../ctags";
-import { window, QuickPickItem, workspace, SnippetString } from 'vscode';
+import { Ctags, Symbol } from '../ctags';
+import { window, workspace, SnippetString } from 'vscode';
+import { selectFile } from '../utils';
 
 export function instantiateTestbenchInteract() {
     let filePath = path.dirname(window.activeTextEditor!.document.fileName);
@@ -16,10 +16,12 @@ export function instantiateTestbenchInteract() {
 function instantiateTestbench(srcpath: string): Thenable<SnippetString> {
     return new Promise<SnippetString>((resolve, reject) => {
         // Using Ctags to get all the modules in the file
+        let input_ports: Symbol[];
+        let output_ports: Symbol[];
         let moduleName: string | undefined = "";
         let portsName: string[] = [];
         let parametersName: string[] = [];
-        let ctags: ModuleTags = new ModuleTags;
+        let ctags: Ctags = new Ctags;
         console.log("Executing ctags for module instantiation");
         ctags.execCtags(srcpath)
             .then(output => {
@@ -52,20 +54,20 @@ function instantiateTestbench(srcpath: string): Thenable<SnippetString> {
                     return;
                 }
                 let scope = (module.parentScope !== "") ? module.parentScope + "." + module.name : module.name;
-                let ports: Symbol[] = ctags.symbols.filter(tag => tag.type === "port" &&
+                input_ports = ctags.symbols.filter(tag => tag.type === "input" &&
                     tag.parentType === "module" &&
                     tag.parentScope === scope);
-                portsName = ports.map(tag => tag.name);
-                let params: Symbol[] = ctags.symbols.filter(tag => tag.type === "constant" &&
+                output_ports = ctags.symbols.filter(tag => tag.type === "output" &&
                     tag.parentType === "module" &&
                     tag.parentScope === scope);
-                parametersName = params.map(tag => tag.name);
-                console.log(module);
-                console.log(portsName);
+                portsName = input_ports.map(tag => tag.name).concat(output_ports.map(tag => tag.name));
+                parametersName = ctags.symbols.filter(tag => tag.type === "parameter" &&
+                    tag.parentType === "module" &&
+                    tag.parentScope === scope).map(tag => tag.name);
                 resolve(new SnippetString()
                     .appendText(headerString(module.name))
-                    .appendText(netDeclarations(portsName))
-                    .appendText(initialBlock())
+                    .appendText(netDeclarations(input_ports, output_ports))
+                    .appendText(initialBlock(input_ports, output_ports))
                     .appendText(module.name + " ")
                     .appendText(`${module.name}_tb(\n`)
                     .appendText(instantiatePort(portsName))
@@ -78,43 +80,63 @@ function instantiateTestbench(srcpath: string): Thenable<SnippetString> {
 
 function headerString(moduleName: string): string {
     let header = "`timescale 1ns / 1ps\n";
-    header += "// FIXME: Add any other necessary includes.\n";
-    header += "`include \"" + moduleName + ".v\"\n\n";
+    if (workspace.getConfiguration().get("myhdltools.tetbenchInstantiation.includeFile")) {
+        header += "`include \"" + <string>workspace.getConfiguration().get("myhdltools.tetbenchInstantiation.includeFile") + "\"\n\n";
+    } else {
+        header += "`include \"" + moduleName + ".v\"\n\n";
+    }
+
     header += "module test_" + moduleName + ";\n\n";
     return header;
 }
 
-function netDeclarations(ports: string[]): string {
-    let nets = "// FIXME: Separate registers from wires and add any necessary bitwidths.\n";
-    nets += "reg ";
-    for (let i = 0; i < ports.length; i++) {
-        nets += ports[i];
-        if (i !== ports.length - 1) {
-            nets += ", ";
-        } else {
-            nets += ";\n\n";
-        }
+function formatBus(bus: string): string {
+    let formattedBus = bus.replace(' ', '').toLowerCase();
+    if (formattedBus.includes('(')) {
+        let ind = formattedBus.indexOf('(') + 1;
+        return [formattedBus.slice(0, ind), '`', formattedBus.slice(ind) + " "].join('');
+    } else {
+        return formattedBus.replace(' ', '').replace('[', '[`').toLowerCase() + " ";
     }
+}
+
+function addPorts(ports: Symbol[], type: string): string {
+    let nets = type + " ";
+    let curr_bus: String | undefined;
+    for (let i = 0; i < ports.length; i++) {
+        if (i === 0) {
+            curr_bus = ports[i].bus;
+            if (ports[i].bus) {
+                nets += formatBus(ports[i].bus!);
+            }
+        }
+        if (ports[i].bus !== curr_bus) {
+            curr_bus = ports[i].bus;
+            nets += ";\n" + type + " ";
+            if (ports[i].bus) {
+                nets += formatBus(ports[i].bus!);
+            }
+        } else if (i !== 0) {
+            nets += ", ";
+        }
+        nets += ports[i].name;
+    }
+    nets += ";\n\n";
     return nets;
 }
 
-function initialBlock(): string {
-    let initial = "initial begin\n";
-    initial += "\t// FIXME: Add registers to function call.\n";
-    initial += "\t$from_myhdl();\n";
-    initial += "\t// FIXME: Add wires to function call.\n";
-    initial += "\t$to_myhdl();\n";
-    initial += "end\n\n";
-    return initial;
+function netDeclarations(input_ports: Symbol[], output_ports: Symbol[]): string {
+    let nets = addPorts(input_ports, "reg");
+    nets += addPorts(output_ports, "wire");
+    return nets;
 }
 
-function tieParams(moduleName: string, parametersName: string[]): string {
-    let tied = "";
-    for (let i = 0; i < parametersName.length; i++) {
-        tied += "defparam " + moduleName + "_tb." + parametersName[i] + " = `" + parametersName[i].toLowerCase() + ";\n";
-    }
-    tied += "\n";
-    return tied;
+function initialBlock(input_ports: Symbol[], output_ports: Symbol[]): string {
+    let initial = "initial begin\n";
+    initial += "\t$from_myhdl(" + input_ports.map(tag => tag.name).join(', ') + ");\n";
+    initial += "\t$to_myhdl(" + output_ports.map(tag => tag.name).join(', ') + ");\n";
+    initial += "end\n\n";
+    return initial;
 }
 
 function instantiatePort(ports: string[]): string {
@@ -125,7 +147,6 @@ function instantiatePort(ports: string[]): string {
             max_len = ports[i].length;
         }
     }
-    // .NAME(NAME)
     for (let i = 0; i < ports.length; i++) {
         let element = ports[i];
         let padding = max_len - element.length + 1;
@@ -139,78 +160,11 @@ function instantiatePort(ports: string[]): string {
     return port;
 }
 
-function selectFile(currentDir?: string): Thenable<string> {
-    currentDir = currentDir || workspace.rootPath;
-
-    let dirs = getDirectories(currentDir!);
-    // if is subdirectory, add '../'
-    if (currentDir !== workspace.rootPath) {
-        dirs.unshift('..');
+function tieParams(moduleName: string, parametersName: string[]): string {
+    let tied = "";
+    for (let i = 0; i < parametersName.length; i++) {
+        tied += "defparam " + moduleName + "_tb." + parametersName[i] + " = `" + parametersName[i].toLowerCase() + ";\n";
     }
-    // all files ends with '.sv'
-    let files = getFiles(currentDir!)
-        .filter(file => file.endsWith('.v') || file.endsWith('.sv'));
-
-    // available quick pick items
-    // Indicate folders in the Quick pick
-    let items: QuickPickItem[] = [];
-    dirs.forEach(dir => {
-        items.push({
-            label: dir,
-            description: "folder"
-        });
-    });
-    files.forEach(file => {
-        items.push({
-            label: file
-        });
-    });
-
-    return window.showQuickPick(items, {
-        placeHolder: "Choose the module file"
-    }).then(selected => {
-
-        // if is a directory
-        let optionalLocation = path.join(currentDir!, selected!.label);
-        let location = optionalLocation!;
-        if (fs.statSync(location).isDirectory()) {
-            return selectFile(location);
-        }
-
-        // return file path
-        return location;
-    });
-}
-
-function getDirectories(srcpath: string): string[] {
-    return fs.readdirSync(srcpath)
-        .filter(file => fs.statSync(path.join(srcpath, file)).isDirectory());
-}
-
-function getFiles(srcpath: string): string[] {
-    return fs.readdirSync(srcpath)
-        .filter(file => fs.statSync(path.join(srcpath, file)).isFile());
-}
-
-class ModuleTags extends Ctags {
-    buildSymbolsList(tags: string): Thenable<void> | undefined {
-        console.log("building symbols");
-        if (tags === '') {
-            console.log("No output from ctags");
-            return;
-        }
-        // Parse ctags output
-        let lines: string[] = tags.split(/\r?\n/);
-        lines.forEach(line => {
-            if (line !== '') {
-                let tag: Symbol = this.parseTagLine(line)!;
-                // add only modules and ports
-                if (tag.type === "module" || tag.type === "port" || tag.type === "constant") {
-                    this.symbols.push(tag);
-                }
-            }
-        });
-        // skip finding end tags
-        console.log(this.symbols);
-    }
+    tied += "\n";
+    return tied;
 }
